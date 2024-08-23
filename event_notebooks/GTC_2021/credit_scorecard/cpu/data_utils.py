@@ -41,10 +41,16 @@ def preprocess_vehicle_data(dataset, id_vars, targ_var):
     dataset['DoB'] = pd.to_datetime(dataset['Date_of_Birth'], format='%d-%m-%y', errors='coerce')
     dataset['DoB'] = dataset['DoB'].mask( dataset['DoB'].dt.year > t_0.year
                                         , dataset['DoB'] - pd.offsets.DateOffset(years=100))
-    dataset['AgeInMonths'] = (t_0 - dataset.DoB).astype('timedelta64[M]')
 
-    dataset['DaysSinceDisbursement'] = (t_0 - pd.to_datetime(dataset.DisbursalDate, format='%d-%m-%y')
-                                       ).astype('timedelta64[D]')
+    # Commented out both `AgeInMonths` and `DaysSinceDisbursement` as they cause
+    # trouble in `gen_uwoesc_df` in the line below, as appending np.inf to a timedelta.
+    # `var_cuts_w_range = np.append(srtd_bin_edges.drop_duplicates().values, np.inf)`
+    # 
+    # dataset['AgeInMonths'] = (t_0 - dataset.DoB).astype('timedelta64[M]')
+    # dataset['AgeInMonths'] = pd.Series(np.array(t_0 - dataset.DoB).astype("timedelta64[M]"))
+
+    # dataset['DaysSinceDisbursement'] = pd.Series(np.array(t_0 - pd.to_datetime(dataset.DisbursalDate, format='%d-%m-%y')
+    #                                    ).astype('timedelta64[D]'))
 
     def timestr_to_mths(timestr):
         '''timestr formatted as 'Xyrs Ymon' '''

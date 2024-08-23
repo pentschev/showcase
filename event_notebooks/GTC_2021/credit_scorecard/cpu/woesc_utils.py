@@ -356,6 +356,8 @@ def gen_uwoesc_df( dat_df, bin_edges, binner=None, n_cuts=None, min_bin_size=100
                 bin_edges = [min_val] + bin_edges
             bin_edges = pd.Series(bin_edges)
 
+        # print(type(bin_edges))
+        # print(bin_edges)
         srtd_bin_edges = bin_edges.sort_values()
         var_cuts_w_range = np.append(srtd_bin_edges.drop_duplicates().values, np.inf)
         notmiss_df['bin'] = pd.cut(notmiss_df[p_var], var_cuts_w_range, right=False)
@@ -530,10 +532,11 @@ def woe_score_var( dat, WOE_df, return_only_WOE=True ):
         # print("Data categories after replacement:", wdat_cats1)
 
         if any(~sets_series.isin(wdat_cats1)):   
-            wdat[p_var].cat.add_categories(sets_series[~sets_series.isin(wdat_cats1)].values, inplace=True)
+            wdat[p_var] = wdat[p_var].cat.add_categories(sets_series[~sets_series.isin(wdat_cats1)].values)
         # print("Data categories final:", wdat[p_var].cat.categories)
 
-        wdat[p_var].cat.reorder_categories(sets_series, inplace=True)
+        # wdat[p_var].cat.reorder_categories(sets_series, inplace=True)
+        wdat[p_var] = wdat[p_var].cat.reorder_categories(sets_series)
         wdat['bin_idx'] = wdat[p_var].cat.codes
     else:
         cutpoints = list(WOE_df.bin_min.dropna()) + [np.inf]
@@ -555,14 +558,14 @@ def woe_score_var( dat, WOE_df, return_only_WOE=True ):
 def gen_var_woe_dfs(p_var, inc_n_cuts, binner, dat, targ_var, **kwargs ):
     """Helper function run in each dask instance
     """
-    WOE_dfs = pd.DataFrame()
+    WOE_dfs = []
     for wdf_idx, n_cuts in enumerate(sorted(inc_n_cuts)):
         print(p_var, binner, n_cuts)
         if wdf_idx > 0 and WOE_df.index.get_level_values('binner')[0] == 'none':
             break
         WOE_df = gen_woe_df( dat, p_var, targ_var, n_cuts, binner=binner, **kwargs )
-        WOE_dfs = WOE_dfs.append(WOE_df, sort=False)
-    return(WOE_dfs)
+        WOE_dfs.append(WOE_df)
+    return pd.concat(WOE_dfs, sort=False)
 
 def create_woesc_df( inc_p_vars, inc_n_cuts, inc_bnrs, dat_df, targ_var, **kwargs ):
     """Create a set of WOE scorecards - outer-product of included predictive variables, # of cuts, and binners 
@@ -890,7 +893,7 @@ def add_scorecard_points(scdf, PDO=20, standardSc_pts=600, standardSc_odds=19, p
         scdf0['bin_pct'] = 1        
 
     scdf0.set_index(scdf.index.names, inplace=True)
-    pointscard = scdf0.append(scdf)
+    pointscard = pd.concat([scdf0, scdf])
     pointscard.base_score = scdf.base_score
     pointscard.base_points = shft_base_pts
     return pointscard
